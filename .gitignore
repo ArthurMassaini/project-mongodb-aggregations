@@ -9,3 +9,7 @@ assets/*/*.bson
 
 assets/*/dump.tar.gz
 node_modules
+
+.prettierrc
+
+queries.mongodb

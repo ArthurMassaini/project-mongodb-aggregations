@@ -1,0 +1,388 @@
+// ----------------------------------------- desafio 01
+
+
+use("aggregations");
+db.movies.aggregate([
+  {
+    $match: {
+      "imdb.rating": { $gte: 7 },
+      genres: { $nin: ["Crime", "Horror"] },
+      rated: { $in: ["pg", "G"] },
+      languages: { $all: ["English", "Spanish"] },
+    },
+  },
+]);
+
+
+// ----------------------------------------- desafio 02
+
+
+use("aggregations");
+db.movies.aggregate([
+  {
+    $match: {
+      "imdb.rating": { $gte: 7 },
+      genres: { $nin: ["Crime", "Horror"] },
+      rated: { $in: ["pg", "G"] },
+      languages: { $all: ["English", "Spanish"] },
+    },
+  },
+  {
+    $project: {
+      titulo: "$title",
+      avaliado: "$rated",
+      notaIMDB: "$imdb.rating",
+      votosIMDB: "$imdb.votes",
+      ano: "$year",
+      _id: 0,
+    },
+  },
+]);
+
+
+
+// ----------------------------------------- desafio 03
+
+
+use("aggregations");
+db.movies.aggregate([
+  {
+    $match: {
+      "imdb.rating": { $gte: 7 },
+      genres: { $nin: ["Crime", "Horror"] },
+      rated: { $in: ["pg", "G"] },
+      languages: { $all: ["English", "Spanish"] },
+    },
+  },
+  {
+    $project: {
+      titulo: "$title",
+      avaliado: "$rated",
+      notaIMDB: "$imdb.rating",
+      votosIMDB: "$imdb.votes",
+      ano: "$year",
+      _id: 0,
+    },
+  },
+  { $sort: { ano: -1, notaIMDB: -1, titulo: 1 } },
+]);
+
+
+// ----------------------------------------- desafio 04
+
+
+use("aggregations");
+db.movies.aggregate([
+  {
+    $addFields: {
+      title_split: { $split: ["$title", " "] },
+    },
+  },
+  { $match: { title_split: { $size: 1 } } },
+  { $sort: { title: 1 } },
+  { $project: { title_split: 1, _id: 0 } },
+]);
+
+
+
+// ----------------------------------------- desafio 05
+
+
+use("aggregations");
+db.movies.aggregate([
+  {
+    $addFields: {
+      favorite: [
+        "Sandra Bullock",
+        "Tom Hanks",
+        "Julia Roberts",
+        "Kevin Spacey",
+        "George Clooney",
+      ],
+    },
+  },
+  {
+    $match: {
+      countries: "usa",
+      "tomatoes.viewer.rating": { $gte: 3 },
+      cast: { $exists: true },
+    },
+  },
+  {
+    $addFields: { commonToBoth: { $setIntersection: ["$favorite", "$cast"] } },
+  },
+  { $addFields: { num_favs: { $size: "$commonToBoth" } } },
+  { $sort: { num_favs: -1, "tomatoes.viewer.rating": -1, title: -1 } },
+  {
+    $project: {
+      title: 1,
+      _id: 0,
+    },
+  },
+  { $skip: 24 },
+  { $limit: 1 },
+]);
+
+
+// ----------------------------------------- desafio 06
+
+
+use("aggregations");
+db.movies.aggregate([
+  {
+    $match: {
+      awards: { $regex: /Won [0-9]+ Oscar/ },
+    },
+  },
+  {
+    $group: {
+      _id: null,
+      maior_rating: { $max: "$imdb.rating" },
+      menor_rating: { $min: "$imdb.rating" },
+      media_rating: { $avg: "$imdb.rating" },
+      desvio_padrao: { $stdDevSamp: "$imdb.rating" },
+    },
+  },
+  {
+    $project: {
+      maior_rating: 1,
+      menor_rating: 1,
+      media_rating: { $round: ["$media_rating", 1] },
+      desvio_padrao: { $round: ["$desvio_padrao", 1] },
+      _id: 0,
+    },
+  },
+]);
+
+
+
+// ----------------------------------------- desafio 07
+
+
+use("aggregations");
+db.movies.aggregate([
+  {
+    $unwind: "$cast",
+  },
+  { $match: { languages: "English" } },
+  {
+    $group: {
+      _id: "$cast",
+      numeroFilmes: { $sum: 1 },
+      mediaIMDB: { $avg: "$imdb.rating" },
+    },
+  },
+  {
+    $project: {
+      numeroFilmes: 1,
+      mediaIMDB: { $round: ["$mediaIMDB", 1] },
+    },
+  },
+  { $sort: { numeroFilmes: -1, _id: -1 } },
+]);
+
+// ----------------------------------------- desafio 08
+
+
+use("aggregations");
+db.air_alliances.aggregate([
+  {
+    $unwind: "$airlines",
+  },
+  {
+    $lookup: {
+      from: "air_routes",
+      localField: "airlines",
+      foreignField: "airline.name",
+      as: "routes",
+    },
+  },
+  {
+    $unwind: "$routes",
+  },
+  {
+    $match: {
+      "routes.airplane": { $in: ["747", "380"] },
+    },
+  },
+  { $group: { _id: "$name", totalRotas: { $sum: 1 } } },
+  { $sort: { totalRotas: -1 } },
+  { $project: { totalRotas: 1 } },
+  { $limit: 1 },
+]);
+
+
+// ----------------------------------------- desafio 09
+
+
+use("aggregations");
+db.trips.aggregate([
+  {
+    $match: { birthYear: { $exists: true, $ne: "" } },
+  },
+  {
+    $group: {
+      _id: null,
+      maiorAnoNascimento: { $max: { $toInt: "$birthYear" } },
+      menorAnoNascimento: { $min: { $toInt: "$birthYear" } },
+    },
+  },
+  { $project: { _id: 0, maiorAnoNascimento: 1, menorAnoNascimento: 1 } },
+]);
+
+
+// ----------------------------------------- desafio 10
+
+
+use("aggregations");
+db.trips.aggregate([
+  {
+    $group: {
+      _id: "$usertype",
+      duracaoMedia: {
+        $avg: { $abs: { $subtract: ["$startTime", "$stopTime"] } },
+      },
+    },
+  },
+  {
+    $project: {
+      tipo: "$_id",
+      duracaoMedia: { $round: [{ $divide: ["$duracaoMedia", 3600000] }, 2] },
+      _id: 0
+    },
+  },
+  { $sort: { duracaoMedia: 1 } },
+]);
+
+
+// ----------------------------------------- desafio 11
+
+
+use("aggregations");
+db.trips.aggregate([
+  { $addFields: { weekDay: { $dayOfWeek: "$startTime" } } },
+  {
+    $group: {
+      _id: "$weekDay",
+      total: {
+        $sum: 1,
+      },
+    },
+  },
+  {
+    $project: {
+      diaDaSemana: "$_id",
+      total: "$total",
+      _id: 0,
+    },
+  },
+  { $sort: { total: -1 } },
+  { $limit: 1 },
+]);
+
+
+
+// ----------------------------------------- desafio 12
+
+
+use("aggregations");
+db.trips.aggregate([
+  { $addFields: { weekDay: { $dayOfWeek: "$startTime" } } },
+  { $match: { weekDay: 5 } },
+  {
+    $group: {
+      _id: "$startStationName",
+      total: {
+        $sum: 1,
+      },
+    },
+  },
+  {
+    $project: {
+      nomeEstacao: "$_id",
+      total: "$total",
+      _id: 0,
+    },
+  },
+  { $sort: { total: -1 } },
+  { $limit: 1 },
+]);
+
+
+// ----------------------------------------- desafio 13
+
+
+use("aggregations");
+db.trips.aggregate([
+  {
+    $match: {
+      startTime: {
+        $gte: ISODate("2016-03-10T00:00:00Z"),
+        $lte: ISODate("2016-03-10T23:59:59Z"),
+      },
+    },
+  },
+  {
+    $group: {
+      _id: null,
+      duracaoMedia: {
+        $avg: { $abs: { $subtract: ["$startTime", "$stopTime"] } },
+      },
+    },
+  },
+  {
+    $project: {
+      _id: 0,
+      duracaoMediaEmMinutos: {
+        $ceil: { $divide: ["$duracaoMedia", 60000] },
+      },
+    },
+  },
+]);
+
+
+// ----------------------------------------- desafio 14
+
+
+use("aggregations");
+db.trips.aggregate([
+  {
+    $group: {
+      _id: "$bikeid",
+      duracaoMedia: {
+        $avg: { $abs: { $subtract: ["$startTime", "$stopTime"] } },
+      },
+    },
+  },
+  {
+    $project: {
+      _id: 0,
+      bikeId: "$_id",
+      duracaoMedia: {
+        $ceil: { $divide: ["$duracaoMedia", 60000] },
+      },
+    },
+  },
+  { $sort: { duracaoMedia: -1 } },
+  { $limit: 5 },
+]);
+
+
+
+
+
+use("aggregations");
+db.air_airlines.find();
+
+use("aggregations");
+db.air_alliances.find();
+
+use("aggregations");
+db.air_routes.find();
+
+use("aggregations");
+db.movies.find();
+
+use("aggregations");
+db.trips.find();
+
